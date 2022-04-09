@@ -1,7 +1,5 @@
 # responder-bot
-Responder bot Slack app built with Node, Webpack and TypeScript.
-
-Uses Slack's Event and Web APIs to respond to user questions. 
+Article summarizer.
 
 Get Started:
 
@@ -9,12 +7,7 @@ Get Started:
 2. Create an `.env` file in the root:
 
 ```
-SLACK_TOKEN=your_slack_token
-SLACK_SIGNING_SECRET=your_slack_signing_secret
-PORT=80
+COHERE_API_KEY=YOUR_KEY
 ```
 
-3. Go to [ngrok.com](https://ngrok.com) and make a free account & follow the setup instructions.
-4. Run `npm start`.
-5. Run `./ngrok http 80`.
-6. Add the generated URL to your [slack app](https://api.slack.com/apps/) under event subscriptions.
+3. Run something like `node src/main.ts --link=https://www.cbc.ca/sports/hockey/nhl/nhl-toronto-maple-leafs-matthews-record-vaive-1.6413543`
