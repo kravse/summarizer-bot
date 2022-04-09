@@ -5,6 +5,72 @@ const { parse } = require('node-html-parser');
 const sanitize = require('sanitize-html')
 const key = process.env.COHERE_API_KEY
 
+let elToCleanText = (el) => {
+  let clean = sanitize(el, {
+    allowedTags: [],
+    allowedAttributes: {}
+  })
+  if (clean.length > 3500) {
+    clean = clean.slice(500, 3500)
+  }
+  return clean.replace(/\s+/g, ' ').replace('"', '').trim()
+}
+
+let getSummaryFromLink = async (link) => {
+  cohere.init(key);
+  request(link, async (err, resp, body) => {
+    let root = parse(body)
+    let title = root.querySelector('title').innerHTML;
+    const generateResp = await cohere.generate("large", {
+      prompt: `${sample}
+        "${elToCleanText(root.querySelector('body'))}"
+        In summary:"`.replace(/\n+/g, ' '),
+      max_tokens: 175,
+      num_generations: 3,
+      temperature: 1,
+      k: 0,
+      p: 0.75,
+      frequency_penalty: 0,
+      presence_penalty: 0,
+      stop_sequences: ['--BREAK--'],
+      return_likelihoods: 'NONE'
+    });
+    const classifyResp = await cohere.classify("medium", {
+      taskDescription: 'Classify the best Title and Summary Combination',
+      outputIndicator: 'Classify this article summary',
+      inputs: generateResp.body?.generations.map(gen => `
+        Title: ${title}
+        Summary: ${gen.text.replace('BREAK', '').replace(/\s+/g, ' ')}
+      `),
+      examples: classifyExamples
+    })
+    let bestConfidence = 0
+    let winningClass;
+    classifyResp.body.classifications.forEach(val => {
+      val.confidences.forEach(c => {
+        if (c.option === 'Good' && c.confidence > bestConfidence) {
+          bestConfidence = c.confidence
+          winningClass = val;
+        }
+      })
+    })
+    console.log('-------')
+    console.log(winningClass.input)
+  })
+}
+
+let init = async () => {
+  var arguments = process.argv;
+  let link = arguments.find(a => a.startsWith('--link='));
+  getSummaryFromLink(link.slice(7, link.length))
+}
+
+(async () => {
+  init();
+})();
+
+
+
 const classifyExamples = [
   {
     text: `
@@ -86,68 +152,3 @@ const sample = `
   In summary: "This is a story about a fox that bit at least 9 people in washington D.C., one of which was a congressman."
   --BREAK--
 `
-
-let elToCleanText = (el) => {
-  let clean = sanitize(el, {
-    allowedTags: [],
-    allowedAttributes: {}
-  })
-  if (clean.length > 3500) {
-    clean = clean.slice(500, 3500)
-  }
-  return clean.replace(/\s+/g, ' ').replace('"', '').trim()
-}
-
-let getSummaryFromLink = async (link) => {
-  cohere.init(key);
-  request(link, async (err, resp, body) => {
-    let root = parse(body)
-    let title = root.querySelector('title').innerHTML;
-    const generateResp = await cohere.generate("large", {
-      prompt: `${sample}
-        "${elToCleanText(root.querySelector('body'))}"
-        In summary:"`.replace(/\n+/g, ' '),
-      max_tokens: 175,
-      num_generations: 3,
-      temperature: 1,
-      k: 0,
-      p: 0.75,
-      frequency_penalty: 0,
-      presence_penalty: 0,
-      stop_sequences: ['--BREAK--'],
-      return_likelihoods: 'NONE'
-    });
-    const classifyResp = await cohere.classify("medium", {
-      taskDescription: 'Classify the best Title and Summary Combination',
-      outputIndicator: 'Classify this article summary',
-      inputs: generateResp.body?.generations.map(gen => `
-        Title: ${title}
-        Summary: ${gen.text.replace('BREAK', '').replace(/\s+/g, ' ')}
-      `),
-      examples: classifyExamples
-    })
-    let bestConfidence = 0
-    let winningClass;
-    classifyResp.body.classifications.forEach(val => {
-      val.confidences.forEach(c => {
-        if (c.option === 'Good' && c.confidence > bestConfidence) {
-          bestConfidence = c.confidence
-          winningClass = val;
-        }
-      })
-    })
-    console.log('-------')
-    console.log(winningClass.input)
-  })
-}
-
-let init = async () => {
-  var arguments = process.argv;
-  let link = arguments.find(a => a.startsWith('--link='));
-  getSummaryFromLink(link.slice(7, link.length))
-}
-
-(async () => {
-  init();
-})();
-
