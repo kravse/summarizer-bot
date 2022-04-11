@@ -27,7 +27,7 @@ let getSummaryFromLink = async (link) => {
         In summary:"`.replace(/\n+/g, ' '),
       max_tokens: 175,
       num_generations: 3,
-      temperature: 0.9,
+      temperature: 1.02,
       k: 0,
       p: 0.75,
       frequency_penalty: 0,
